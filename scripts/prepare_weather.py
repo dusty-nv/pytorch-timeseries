@@ -27,4 +27,4 @@ df.rename(columns={args.city:'temperature'}, inplace=True)
 print(df)
 
 df.to_csv(args.output, index=False)
-print(f"saved {args.output}")
+print(f"saved {len(df)} rows to {args.output}")

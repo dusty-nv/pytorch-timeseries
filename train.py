@@ -17,8 +17,8 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--data', default='', type=str, required=True, help='path to CSV file')
 parser.add_argument('--inputs', default='', type=str, required=True, help='name of input columns (comma-separated)')
 parser.add_argument('--outputs', default='', type=str, required=True, help='name of output columns (comma-separated)')
-parser.add_argument('--history', default=0, type=int, help='sequence history (in timesteps). GRU/RNN models should use history > 0, others should use history=0')
-parser.add_argument('--horizon', default=1, type=int, help='forecasting horizon (in timesteps)')
+parser.add_argument('--history', default=0, type=int, help='lookback sequence history (in timesteps). GRU/RNN models should use history > 0, others should use history=0')
+parser.add_argument('--horizon', default=0, type=int, help='forecasting horizon - how far into the future to predict (in timesteps)')
 parser.add_argument('--input-scaler', default='standard', choices=['none', 'minmax', 'standard'], help='dataset preprocessing scaler to use')
 parser.add_argument('--output-scaler', default='standard', choices=['none', 'minmax', 'standard'], help='dataset preprocessing scaler to use')
 parser.add_argument('--classification', action='store_true', help='set for classification datasets')
@@ -77,7 +77,7 @@ for s, subset in enumerate(dataset.subsets):
         print(f"{f'{subset} {metric.upper()}:':<11s} {metrics[metric]}")
     
     for o, output in enumerate(dataset.outputs):
-        df.plot(x=args.plot_x, y=[output, 'predicted_' + output], ax=axes[s,o],
+        df.plot(x=args.plot_x, y=[output, output + '^'], ax=axes[s,o],
                 title=f"{subset} ({', '.join([f'{metric.upper()}={metrics[metric][o]:.5g}' for metric in metrics])})")
 
 fig.set_size_inches(args.plot_width/100, args.plot_height/100)
