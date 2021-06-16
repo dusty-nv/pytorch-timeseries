@@ -7,6 +7,7 @@ import numpy as np
 import pandas as pd
 
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
+from sklearn.metrics import mean_squared_error, mean_absolute_error, max_error, r2_score
 
 
 class Dataset():
@@ -56,7 +57,7 @@ class Dataset():
         """
         if isinstance(data, str):
             print(f"loading {data}")
-            self.df = pd.read_csv(data, nrows=data_limit, parse_dates=[0])
+            self.df = pd.read_csv(data, nrows=data_limit)#, parse_dates=[0])
         else:
             self.df = data
 
@@ -235,34 +236,6 @@ class DataSubset(torch.utils.data.Dataset):
         self.type = type
         self.parent = parent
 
-    def preprocess(self):
-        # convert to numpy arrays
-        self.inputs = self.df[self.parent.inputs].values.astype(np.float32)
-        self.targets = self.df[self.parent.outputs].values.astype(np.float32)
-        
-        # rescale/normalize the data
-        if self.parent.input_scaler is not None:
-            self.inputs = self.parent.input_scaler.transform(self.inputs)
-        
-        if self.parent.output_scaler is not None:
-            self.targets = self.parent.output_scaler.transform(self.targets)
-          
-        # if single-feature outputs, flatten into 1D arrays 
-        if self.parent.num_outputs == 1:
-            self.targets = self.targets.ravel()
-
-        # generate sequences
-        if self.parent.history > 0:
-            self.generate_sequences(self.parent.history)
-            
-        # create pytorch tensors
-        self.inputs = torch.from_numpy(self.inputs).type(torch.FloatTensor).cuda() #.unsqueeze(1)  # seq_len=1
-
-        if self.parent.num_classes > 0: # if this is a classification dataset, integer output data is expected
-             self.targets = torch.from_numpy(self.targets).type(torch.LongTensor).squeeze().cuda()
-        else:
-             self.targets = torch.from_numpy(self.targets).type(torch.FloatTensor).unsqueeze(-1).cuda()
-             
     def __len__(self):
         return self.inputs.shape[0]
 
@@ -307,7 +280,88 @@ class DataSubset(torch.utils.data.Dataset):
             #print('{:s} {:s} class {:d} - weight {:f}'.format(self.type, feature, idx, class_weight))
             
         return class_weights
+
+    def merge(self, tensor, column_prefix='predicted_', return_metrics=None, inplace=False):
+        """
+        Merge output(s) back into the DataFrame, and add column_prefix to the column name.
+        If the outputs were scaled by the model, they will be unscaled before being merged.
+        If return_metrics is 'rmse', 'mse', or 'mae', these will be computed and returned.
+        """
+        if inplace:
+            df = self.df
+        else:
+            df = self.df.copy()
         
+        array = to_numpy(tensor)
+        
+        if self.parent.output_scaler is not None:
+            array = self.parent.output_scaler.inverse_transform(array)
+
+        if len(df) != len(array):
+            df = df.tail(n=len(array))
+
+        for col in range(array.shape[1]):
+            df[column_prefix + self.parent.outputs[col]] = array[:,col]
+        
+        if not return_metrics:
+            return df
+        
+        if isinstance(return_metrics, str):
+            return_metrics = return_metrics.split(',')
+            
+        return_metrics = [x.lower() for x in return_metrics]
+        metrics = {x : [] for x in return_metrics}
+        
+        for col in range(array.shape[1]):
+            target = df[self.parent.outputs[col]]
+            pred = df[column_prefix + self.parent.outputs[col]]
+            
+            for metric in return_metrics:
+                if metric == 'rmse':
+                    error = mean_squared_error(target, pred, squared=False)
+                elif metric == 'mse':
+                    error = mean_squared_error(target, pred)
+                elif metric == 'mae':
+                    error = mean_absolute_error(target, pred)
+                elif metric == 'max_error':
+                    error = max_error(target, pred)
+                elif metric == 'r2':
+                    error = r2_score(target, pred)
+                else:
+                    raise ValueError(f"invalid return_metric '{return_metric}'")
+        
+                metrics[metric].append(error)
+                
+        return df, metrics
+        
+    def preprocess(self):
+        # convert to numpy arrays
+        self.inputs = self.df[self.parent.inputs].values.astype(np.float32)
+        self.targets = self.df[self.parent.outputs].values.astype(np.float32)
+        
+        # rescale/normalize the data
+        if self.parent.input_scaler is not None:
+            self.inputs = self.parent.input_scaler.transform(self.inputs)
+        
+        if self.parent.output_scaler is not None:
+            self.targets = self.parent.output_scaler.transform(self.targets)
+          
+        # if single-feature outputs, flatten into 1D arrays 
+        if self.parent.num_outputs == 1:
+            self.targets = self.targets.ravel()
+
+        # generate sequences
+        if self.parent.history > 0:
+            self.generate_sequences(self.parent.history)
+            
+        # create pytorch tensors
+        self.inputs = torch.from_numpy(self.inputs).type(torch.FloatTensor).cuda() #.unsqueeze(1)  # seq_len=1
+
+        if self.parent.num_classes > 0: # if this is a classification dataset, integer output data is expected
+             self.targets = torch.from_numpy(self.targets).type(torch.LongTensor).squeeze().cuda()
+        else:
+             self.targets = torch.from_numpy(self.targets).type(torch.FloatTensor).unsqueeze(-1).cuda()
+                     
     def generate_sequences(self, sequence_length):
         # the last element of the sequence is the output target
         # so really the input sequences end up being 1 less
@@ -325,7 +379,7 @@ class DataSubset(torch.utils.data.Dataset):
         self.inputs = sequence(self.inputs)
         self.targets = sequence(self.targets)[:,-1]
 
-
+    
 class DataLoader():
     """
     Custom DataLoader for accessing DataSubset batches.
@@ -357,7 +411,14 @@ class DataLoader():
         
         return self.dataset.inputs[start_idx:end_idx], self.dataset.targets[start_idx:end_idx]
 
-   
+
+def to_numpy(tensor):
+    return tensor.detach().cpu().numpy() if tensor.requires_grad else tensor.cpu().numpy()
+ 
+def to_pytorch(array, dtype=torch.FloatTensor):
+    return torch.from_numpy(array).type(dtype).cuda() 
+
+    
 if __name__ == "__main__":
 
     import argparse
