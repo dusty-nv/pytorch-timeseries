@@ -2,9 +2,11 @@
 # coding: utf-8
 
 from .gru import GRU
+from .linear import Linear
 
 model_map = {
-    'gru' : GRU
+    'gru' : GRU,
+    'linear' : Linear
 }
 
 model_list = list(model_map.keys())
