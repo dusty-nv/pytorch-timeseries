@@ -281,9 +281,9 @@ class DataSubset(torch.utils.data.Dataset):
             
         return class_weights
 
-    def merge(self, tensor, column_prefix='predicted_', return_metrics=None, inplace=False):
+    def merge(self, tensor, rename_format='{:s}^', return_metrics=None, inplace=False):
         """
-        Merge output(s) back into the DataFrame, and add column_prefix to the column name.
+        Merge output(s) back into the DataFrame, and rename the columns using rename_format.
         If the outputs were scaled by the model, they will be unscaled before being merged.
         If return_metrics is 'rmse', 'mse', or 'mae', these will be computed and returned.
         """
@@ -301,7 +301,7 @@ class DataSubset(torch.utils.data.Dataset):
             df = df.tail(n=len(array))
 
         for col in range(array.shape[1]):
-            df[column_prefix + self.parent.outputs[col]] = array[:,col]
+            df[rename_format.format(self.parent.outputs[col])] = array[:,col]
         
         if not return_metrics:
             return df
@@ -314,7 +314,7 @@ class DataSubset(torch.utils.data.Dataset):
         
         for col in range(array.shape[1]):
             target = df[self.parent.outputs[col]]
-            pred = df[column_prefix + self.parent.outputs[col]]
+            pred = df[rename_format.format(self.parent.outputs[col])]
             
             for metric in return_metrics:
                 if metric == 'rmse':
@@ -360,8 +360,11 @@ class DataSubset(torch.utils.data.Dataset):
         if self.parent.num_classes > 0: # if this is a classification dataset, integer output data is expected
              self.targets = torch.from_numpy(self.targets).type(torch.LongTensor).squeeze().cuda()
         else:
-             self.targets = torch.from_numpy(self.targets).type(torch.FloatTensor).unsqueeze(-1).cuda()
+             self.targets = torch.from_numpy(self.targets).type(torch.FloatTensor).cuda()
                      
+             if self.parent.num_outputs == 1:
+                self.targets = self.targets.unsqueeze(-1)
+                
     def generate_sequences(self, sequence_length):
         # the last element of the sequence is the output target
         # so really the input sequences end up being 1 less
