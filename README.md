@@ -13,7 +13,7 @@ $ cd pytorch-timeseries
 
 #### Weather Forecasting
 
-In this [hourly weather dataset](https://www.kaggle.com/selfishgene/historical-hourly-weather-data), we are forecasting the future weather of a city based on it's past weather.  The following data is given on 1-hour intervals:
+In this [hourly weather dataset](https://www.kaggle.com/selfishgene/historical-hourly-weather-data), we are forecasting the future weather of a city based on it's past weather.  The following data is provided on 1-hour intervals (over a timespan of 40,000 hours):
 
 ```
 temperature
@@ -23,7 +23,7 @@ wind_direction
 wind_speed
 ```
 
-Start by forecasting just the temperature:
+Let's start by forecasting just the temperature:
 
 ``` bash
 $ python3 train.py --data data/weather.csv --inputs temperature --outputs temperature --horizon 1
@@ -37,7 +37,7 @@ val R2:     [0.9815134518452414]
 
 ![Weather Forecasting](data/weather_temperature.jpg)
 
-Next we can incorporate multiple inputs and outputs by simultaneously predicting the temperature, humidity, and barometric pressure:
+Next we can incorporate multiple inputs/outputs and simultaneously predict the temperature, humidity, and barometric pressure:
 
 ``` bash
 $ python3 train.py --data data/weather.csv --inputs temperature,humidity,pressure --outputs temperature,humidity,pressure --horizon 1
