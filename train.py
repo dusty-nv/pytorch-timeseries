@@ -24,10 +24,10 @@ parser.add_argument('--output-scaler', default='standard', choices=['none', 'min
 parser.add_argument('--classification', action='store_true', help='set for classification datasets')
 
 parser.add_argument('--model', default='linear', type=str, help='PyTorch checkpoint or model architecture: ' + ','.join(Model.available_models()))
-parser.add_argument('--epochs', default=1000, type=int, help='number of training epochs')
+parser.add_argument('--epochs', default=250, type=int, help='number of training epochs')
 parser.add_argument('--batch-size', default=-1, type=int, help='the batch size (default is entire dataset)')
 parser.add_argument('--learning-rate', default=0.05, type=float, help='learning rate')
-parser.add_argument('--scheduler', default='StepLR_250', type=str, help='learning rate scheduler')
+parser.add_argument('--scheduler', default='StepLR_250', type=str, help='learning rate scheduler (StepLR_* or ReduceLROnPlateau_*)')
 
 parser.add_argument('--plot', default='', type=str, help='path to save plot (by default will be <data>.jpg)')
 parser.add_argument('--plot-x', default='0', type=str, help='column name or index of the plot x-axis')
@@ -78,10 +78,10 @@ for s, subset in enumerate(dataset.subsets):
     
     for o, output in enumerate(dataset.outputs):
         df.plot(x=args.plot_x, y=[output, output + '^'], ax=axes[s,o],
-                title=f"{subset} ({', '.join([f'{metric.upper()}={metrics[metric][o]:.5g}' for metric in metrics])})")
+                title=f"{subset} (N={len(dataset[subset])}, {', '.join([f'{metric.upper()}={metrics[metric][o]:.5g}' for metric in metrics])})")
 
 fig.set_size_inches(args.plot_width/100, args.plot_height/100)
-fig.suptitle(f'{args.data} - {args.model} model ({args.epochs} epochs, history={args.history}, horizon={args.horizon})')
+fig.suptitle(f"{os.path.basename(args.data)} - {args.model} model ({args.epochs} epochs{f', history={args.history}' if args.history else ''}{f', horizon={args.horizon}' if args.horizon else ''})")
 fig.savefig(args.plot) 
         
-print(f'saved plot to {args.plot}')
+print(f'\nsaved plot to {args.plot}')

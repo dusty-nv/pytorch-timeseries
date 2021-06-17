@@ -2,8 +2,9 @@
 # coding: utf-8
 
 import os
-import math
+import copy
 import torch
+import numpy as np
 
 from torch.optim.lr_scheduler import StepLR, ReduceLROnPlateau
 
@@ -40,7 +41,7 @@ class Model:
         else:
             raise NotImplementedError('loading from checkpoint not yet implemented')
             
-    def train(self, dataset, epochs=1000, batch_size=-1, learning_rate=0.05, scheduler='StepLR_250'):
+    def train(self, dataset, epochs=1000, batch_size=-1, learning_rate=0.05, scheduler='StepLR_250', keep_best=True):
         """
         Train the model on the provided dataset.
         
@@ -52,7 +53,8 @@ class Model:
             scheduler -- the learning rate scheduler to use (StepLR or ReduceLROnPlateau). These strings can have a suffix of the
                          form '_N', where N is the step epochs parameter used by the scheduler.  For example, 'StepLR_30' will reduce
                          the learning rate every 30 epochs.  'ReduceLROnPlateau_10' will reduce when there is a 10-epoch plateau.
-        
+            keep_best -- if true (default), the model with lowest validation loss will be restored at the end of training
+                         if false, the model from the last epoch will be used
         TODO add plateau parameter, which makes epochs argument mean the number of epochs to plateu before stopping
         """
         dataloaders = {}
@@ -70,7 +72,11 @@ class Model:
         optimizer = torch.optim.Adam(self.model.parameters(), lr=learning_rate)   
         scheduler = self._create_scheduler(scheduler, optimizer)
         criterion = self._create_loss(dataset.classification)
-
+        
+        best_loss  = np.inf
+        best_epoch = 0
+        best_model = None
+        
         # training loop
         for epoch in range(epochs):
             self.model.train()
@@ -88,14 +94,24 @@ class Model:
 
             # eval model
             val_loss = self.eval(dataloaders['val'], criterion)
-            print(f"Epoch {epoch:03d}  LR={scheduler._last_lr[0]:.2g}  train_loss={train_loss:.8f}  val_loss={val_loss:.8f}")
             
+            if val_loss < best_loss and keep_best:
+                best_loss = val_loss
+                best_epoch = epoch
+                best_model = copy.deepcopy(self.model)
+                
             # update learning rate
             if isinstance(scheduler, ReduceLROnPlateau):
                 scheduler.step(metrics=train_loss)
             else:
-                scheduler.step()
-
+                scheduler.step
+                
+            print(f"Epoch {epoch:03d}  LR={scheduler._last_lr[0]:.2g}  train_loss={train_loss:.8f}  val_loss={val_loss:.8f}{'  (best)' if best_epoch == epoch else ''}")
+        
+        if keep_best:
+            self.model = best_model
+            print(f"\nbest model: epoch={best_epoch} val_loss={best_loss:.8f}\n")
+            
         return train_loss, val_loss
     
     def eval(self, data, criterion=None, return_outputs=False):
