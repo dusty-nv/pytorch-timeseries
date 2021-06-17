@@ -67,7 +67,7 @@ model.train(dataset, epochs=args.epochs, batch_size=args.batch_size,
             learning_rate=args.learning_rate, scheduler=args.scheduler)
           
 # eval plot
-fig, axes = plt.subplots(len(dataset.subsets), len(dataset.outputs), squeeze=False)
+fig, axes = plt.subplots(len(dataset.subsets), len(dataset.outputs), squeeze=False, tight_layout=dict(rect=[0, 0, 1, 0.95]))
     
 for s, subset in enumerate(dataset.subsets):
     loss, outputs = model.eval(dataset[subset], return_outputs=True)
@@ -77,9 +77,9 @@ for s, subset in enumerate(dataset.subsets):
         print(f"{f'{subset} {metric.upper()}:':<11s} {metrics[metric]}")
     
     for o, output in enumerate(dataset.outputs):
-        df.plot(x=args.plot_x, y=[output, output + '^'], ax=axes[s,o],
+        df.plot(x=args.plot_x, y=[output, output + '^'], ax=axes[s,o], alpha=0.85,
                 title=f"{subset} (N={len(dataset[subset])}, {', '.join([f'{metric.upper()}={metrics[metric][o]:.5g}' for metric in metrics])})")
-
+       
 fig.set_size_inches(args.plot_width/100, args.plot_height/100)
 fig.suptitle(f"{os.path.basename(args.data)} - {args.model} model ({args.epochs} epochs{f', history={args.history}' if args.history else ''}{f', horizon={args.horizon}' if args.horizon else ''})")
 fig.savefig(args.plot) 
