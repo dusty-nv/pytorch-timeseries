@@ -81,6 +81,7 @@ class Model:
         for epoch in range(epochs):
             self.model.train()
             train_loss = 0.0
+            train_accuracy = 0.0
             
             for i, (input, target) in enumerate(dataloaders['train']):
                 output = self.model(input)
@@ -92,8 +93,11 @@ class Model:
      
                 train_loss += loss.item() * dataloaders['train'].last_batch_weight
 
+                if dataset.classification:
+                    train_accuracy += self.accuracy(output, target, criterion) * dataloaders['train'].last_batch_weight
+                    
             # eval model
-            val_loss = self.eval(dataloaders['val'], criterion)
+            val_loss, val_accuracy = self.eval(dataloaders['val'], criterion)
             
             if val_loss < best_loss and keep_best:
                 best_loss = val_loss
@@ -106,7 +110,8 @@ class Model:
             else:
                 scheduler.step
                 
-            print(f"Epoch {epoch:03d}  LR={scheduler._last_lr[0]:.2g}  train_loss={train_loss:.8f}  val_loss={val_loss:.8f}{'  (best)' if best_epoch == epoch else ''}")
+            accuracy_str = f"  train_acc={train_accuracy:<6.4g}  val_acc={val_accuracy:<6.4g}" if dataset.classification else ''
+            print(f"Epoch {epoch:03d}  LR={scheduler._last_lr[0]:.2g}  train_loss={train_loss:.8f}  val_loss={val_loss:.8f}{accuracy_str}{'  (best)' if best_epoch == epoch else ''}")
         
         if keep_best:
             self.model = best_model
@@ -116,7 +121,8 @@ class Model:
     
     def eval(self, data, criterion=None, return_outputs=False):
         """
-        Eval model on dataset, return the loss
+        Eval model on dataset, return the loss and accuracy
+        For regression datasets, the accuracy will be 0
         """
         if isinstance(data, DataLoader):
             dataloader = data
@@ -131,6 +137,7 @@ class Model:
         self.model.eval()
         
         loss = 0.0
+        accuracy = 0.0
         outputs = []
         
         with torch.no_grad():
@@ -138,14 +145,26 @@ class Model:
                 output = self.model(input)
                 loss += criterion(output, target).item() * dataloader.last_batch_weight
                 
+                if dataloader.dataset.parent.classification:
+                    accuracy += self.accuracy(output, target, criterion) * dataloader.last_batch_weight
+                    
                 if return_outputs:
                     outputs.append(output)
                     
         if return_outputs:
-            return loss, torch.cat(outputs)
-        else:
-            return loss
+            outputs = torch.cat(outputs)
             
+            if dataloader.dataset.parent.classification:
+                _, outputs = torch.max(outputs,1)
+                
+            return loss, accuracy, outputs
+        else:
+            return loss, accuracy
+    
+    def accuracy(self, output, target, criterion):
+        _, preds = torch.max(output, 1)
+        return (preds == target).float().mean().cpu().item()
+        
     @staticmethod
     def _create_loss(classification):
         if classification:

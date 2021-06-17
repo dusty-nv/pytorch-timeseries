@@ -7,7 +7,11 @@ import numpy as np
 import pandas as pd
 
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
-from sklearn.metrics import mean_squared_error, mean_absolute_error, max_error, r2_score
+from sklearn.metrics import (
+    accuracy_score, precision_score, recall_score, 
+    mean_squared_error, mean_absolute_error, max_error,
+    f1_score, r2_score
+)    
 
 
 class Dataset():
@@ -116,10 +120,11 @@ class Dataset():
                 
             # if this is a classification dataset, get the number of classes
             if self.classification:
-                if self.num_outputs > 0:
+                if self.num_outputs > 1:
                     raise ValueError(f"classification datasets should only have one output - this dataset has multiple outputs {self.outputs_src}")
-                self.output_classes = self.df[self.outputs_src].unique().values.tolist()
+                self.output_classes = sorted(pd.unique(self.df[self.outputs_src].squeeze()).tolist())
                 self.num_classes = len(self.output_classes)
+                self.num_outputs = self.num_classes
                 
             # shift the outputs and rename output columns
             if self.horizon > 0:
@@ -185,8 +190,7 @@ class Dataset():
         else:
             return None 
 
-    @staticmethod
-    def validate_columns(columns):
+    def validate_columns(self, columns):
         """
         Verify that a list of column names / indices are valid,
         and convert indices to names for readability.
@@ -300,6 +304,9 @@ class DataSubset(torch.utils.data.Dataset):
         if len(df) != len(array):
             df = df.tail(n=len(array))
 
+        if len(array.shape) == 1:
+            array = np.expand_dims(array, 1)
+
         for col in range(array.shape[1]):
             df[rename_format.format(self.parent.outputs[col])] = array[:,col]
         
@@ -309,28 +316,37 @@ class DataSubset(torch.utils.data.Dataset):
         if isinstance(return_metrics, str):
             return_metrics = return_metrics.split(',')
             
-        return_metrics = [x.lower() for x in return_metrics]
         metrics = {x : [] for x in return_metrics}
         
         for col in range(array.shape[1]):
             target = df[self.parent.outputs[col]]
             pred = df[rename_format.format(self.parent.outputs[col])]
             
-            for metric in return_metrics:
-                if metric == 'rmse':
-                    error = mean_squared_error(target, pred, squared=False)
-                elif metric == 'mse':
-                    error = mean_squared_error(target, pred)
-                elif metric == 'mae':
-                    error = mean_absolute_error(target, pred)
-                elif metric == 'max_error':
-                    error = max_error(target, pred)
-                elif metric == 'r2':
-                    error = r2_score(target, pred)
+            for metric_type in return_metrics:
+                _metric_type = metric_type.lower()
+                
+                if _metric_type == 'rmse':
+                    metric = mean_squared_error(target, pred, squared=False)
+                elif _metric_type == 'mse':
+                    metric = mean_squared_error(target, pred)
+                elif _metric_type == 'mae':
+                    metric = mean_absolute_error(target, pred)
+                elif _metric_type == 'max_error':
+                    metric = max_error(target, pred)
+                elif _metric_type == 'r2':
+                    metric = r2_score(target, pred)
+                elif _metric_type == 'f1':
+                    metric = f1_score(target, pred, average='weighted')
+                elif _metric_type == 'accuracy':
+                    metric = accuracy_score(target, pred)
+                elif _metric_type == 'precision':
+                    metric = precision_score(target, pred, average='weighted')
+                elif _metric_type == 'recall':
+                    metric = recall_score(target, pred, average='weighted')
                 else:
-                    raise ValueError(f"invalid return_metric '{return_metric}'")
+                    raise ValueError(f"invalid metric '{metric_type}'")
         
-                metrics[metric].append(error)
+                metrics[metric_type].append(metric)
                 
         return df, metrics
         
