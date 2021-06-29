@@ -108,7 +108,7 @@ class Model:
             if isinstance(scheduler, ReduceLROnPlateau):
                 scheduler.step(metrics=train_loss)
             else:
-                scheduler.step
+                scheduler.step()
                 
             accuracy_str = f"  train_acc={train_accuracy:<6.4g}  val_acc={val_accuracy:<6.4g}" if dataset.classification else ''
             print(f"Epoch {epoch:03d}  LR={scheduler._last_lr[0]:.2g}  train_loss={train_loss:.8f}  val_loss={val_loss:.8f}{accuracy_str}{'  (best)' if best_epoch == epoch else ''}")
