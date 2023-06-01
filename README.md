@@ -7,9 +7,11 @@ Time-series forecasting and prediction on tabular data using PyTorch.  Supports 
 ``` bash
 $ git clone https://github.com/dusty-nv/pytorch-timeseries
 $ cd pytorch-timeseries
-$ docker/run.sh
+$ docker/run.sh -c nvcr.io/nvidia/l4t-ml:rXX.X-py3
 $ cd pytorch-timeseries
 ```
+
+When you do the `docker/run.sh` command, pick one of the [l4t-ml](https://catalog.ngc.nvidia.com/orgs/nvidia/containers/l4t-ml) container tags for the version of JetPack-L4T that you are running.  For example, if you're on JetPack 4.6 / L4T R32.7, use `nvcr.io/nvidia/l4t-ml:r32.7.1-py3`
 
 #### Weather Forecasting
 
