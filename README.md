@@ -1,13 +1,13 @@
 # pytorch-timeseries
 
-Time-series forecasting and prediction on tabular data using PyTorch.  Supports Jetson Nano, TX1/TX2, AGX Xavier, and Xavier NX.
+Time-series forecasting and prediction on tabular data using PyTorch and NVIDIA Jetson.
 
 #### Starting the Container
 
 ``` bash
 $ git clone https://github.com/dusty-nv/pytorch-timeseries
 $ cd pytorch-timeseries
-$ docker/run.sh -c nvcr.io/nvidia/l4t-ml:rXX.X-py3
+$ docker/run.sh -c nvcr.io/nvidia/l4t-ml:rXX.X-py3  # select l4t-ml based on your JetPack-L4T version
 $ cd pytorch-timeseries
 ```
 
